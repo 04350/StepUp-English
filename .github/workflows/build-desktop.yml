@@ -1,0 +1,54 @@
+name: Build StepUp English desktop app
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - ".github/workflows/build-desktop.yml"
+      - "index.html"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache: true
+          cache-dependency-path: desktop/go.sum
+
+      - name: Embed the current offline learning app
+        shell: pwsh
+        run: Copy-Item -LiteralPath "index.html" -Destination "desktop/app.html" -Force
+
+      - name: Build native Windows app
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          go mod tidy
+          go mod download
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          go build -trimpath -ldflags="-H=windowsgui -s -w" -o dist/StepUp-English.exe .
+          if (!(Test-Path "dist/StepUp-English.exe")) { throw "EXE was not created" }
+          $exe = Get-Item "dist/StepUp-English.exe"
+          if ($exe.Length -lt 1000000) { throw "EXE is unexpectedly small; the embedded app may be missing" }
+          $bytes = [System.IO.File]::ReadAllBytes($exe.FullName)
+          if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw "Output is not a Windows PE executable" }
+          Write-Host "Built $($exe.Length)-byte Windows executable"
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: StepUp-English-Windows-x64
+          path: desktop/dist/StepUp-English.exe
+          if-no-files-found: error
+          retention-days: 30
