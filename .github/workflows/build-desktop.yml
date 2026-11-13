@@ -24,7 +24,7 @@ jobs:
         with:
           go-version: "1.23.x"
           cache: true
-          cache-dependency-path: desktop/go.sum
+          cache-dependency-path: desktop/go.mod
 
       - name: Embed the current offline learning app
         shell: pwsh
