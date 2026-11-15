@@ -20,7 +20,6 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
-import androidx.annotation.Keep
 import java.io.File
 import java.io.FileOutputStream
 
@@ -125,7 +124,6 @@ class MainActivity : Activity() {
         view.evaluateJavascript(script, null)
     }
 
-    @Keep
     inner class NativeFileBridge {
         @JavascriptInterface
         fun saveFile(fileName: String, dataUrl: String) {
