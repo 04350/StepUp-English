@@ -23,3 +23,8 @@ This folder contains the Android application wrapper for the existing offline le
 The workflow `.github/workflows/build-android.yml` copies the current `index.html` into the Android assets folder, compiles a signed debug APK, validates the APK archive and uploads it as `StepUp-English-Android`.
 
 The debug APK is signed automatically by the Android Gradle plugin and can be installed manually. It is not a Play Store release-signed APK.
+
+
+## Continuous integration verification
+
+The Android workflow also runs for pull requests and checks that the APK is a valid ZIP, that it contains the byte-for-byte current root `index.html`, and that its Android signature verifies.
