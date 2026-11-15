@@ -62,7 +62,11 @@ jobs:
               assert bundled == source, "APK does not contain the current index.html"
           print(f"APK verified: {apk.stat().st_size:,} bytes; embedded HTML: {len(source):,} bytes")
           PY
-          apksigner verify --verbose app/build/outputs/apk/debug/app-debug.apk
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK_ROOT" || { echo "Android SDK root was not found"; exit 1; }
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$APKSIGNER" || { echo "apksigner was not found in Android build-tools"; exit 1; }
+          "$APKSIGNER" verify --verbose app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
