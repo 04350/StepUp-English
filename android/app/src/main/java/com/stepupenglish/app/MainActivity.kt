@@ -139,17 +139,19 @@ class MainActivity : Activity() {
                     .take(120)
                     .ifBlank { "StepUp-English-backup.json" }
 
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
-                    checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
-                    PackageManager.PERMISSION_GRANTED
-                ) {
-                    pendingExport = safeName to bytes
-                    requestPermissions(
-                        arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                        STORAGE_PERMISSION_REQUEST
-                    )
-                } else {
-                    saveExport(safeName, bytes)
+                runOnUiThread {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                        checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+                        PackageManager.PERMISSION_GRANTED
+                    ) {
+                        pendingExport = safeName to bytes
+                        requestPermissions(
+                            arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                            STORAGE_PERMISSION_REQUEST
+                        )
+                    } else {
+                        saveExport(safeName, bytes)
+                    }
                 }
             } catch (error: Exception) {
                 Log.e(TAG, "Unable to save exported backup", error)
@@ -163,10 +165,10 @@ class MainActivity : Activity() {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val values = ContentValues().apply {
-                        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                        put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
-                        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/StepUp English")
-                        put(MediaStore.Downloads.IS_PENDING, 1)
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                        put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/StepUp English")
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                     val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                         ?: throw IllegalStateException("Could not create Downloads entry")
