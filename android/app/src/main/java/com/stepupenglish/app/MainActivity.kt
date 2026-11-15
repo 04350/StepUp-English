@@ -73,7 +73,7 @@ class MainActivity : Activity() {
                     val scheme = request.url.scheme?.lowercase()
                     // The learning app is packaged locally. Block external navigation so
                     // the Android app remains offline and cannot unexpectedly leave the app.
-                    return scheme !in setOf("file", "data", "blob", "about")
+                    return scheme == null || scheme !in setOf("file", "data", "blob", "about")
                 }
 
                 override fun onPageFinished(view: WebView, url: String) {
