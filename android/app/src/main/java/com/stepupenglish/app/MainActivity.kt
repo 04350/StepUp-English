@@ -23,7 +23,6 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Locale
 
 class MainActivity : Activity() {
     companion object {
