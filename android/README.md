@@ -14,7 +14,7 @@ This folder contains the Android application wrapper for the existing offline le
 
 ## Requirements
 
-- Android 6.0 (API 23) or newer.
+- Android 6.0 (API 23) or newer. Version 1.3.2 declares Android 11+ TTS service visibility in the manifest.
 - No account, subscription, or Internet connection required to use the lessons.
 - Uses the Android TextToSpeech engine when an installed English voice that does not require network access is available.
 - Falls back to the locally available WebView speech voice and the recordings embedded in the app.
