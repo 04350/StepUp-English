@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.speech.tts.TextToSpeech
 import android.util.Base64
 import android.util.Log
 import android.view.View
@@ -22,6 +23,7 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Locale
 
 class MainActivity : Activity() {
     companion object {
@@ -32,11 +34,37 @@ class MainActivity : Activity() {
     }
 
     private lateinit var webView: WebView
+    private var textToSpeech: TextToSpeech? = null
+    @Volatile private var offlineEnglishTtsReady = false
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var pendingExport: Pair<String, ByteArray>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        textToSpeech = TextToSpeech(this) { status ->
+            val engine = textToSpeech
+            if (status == TextToSpeech.SUCCESS && engine != null) {
+                try {
+                    // Select an installed English voice that does not require network access.
+                    val offlineVoice = engine.voices
+                        ?.filter { it.locale.language.equals("en", ignoreCase = true) && !it.isNetworkConnectionRequired }
+                        ?.sortedBy { if (it.locale.country.equals("US", ignoreCase = true)) 0 else 1 }
+                        ?.firstOrNull()
+                    offlineEnglishTtsReady = offlineVoice != null &&
+                        engine.setVoice(offlineVoice) == TextToSpeech.SUCCESS
+                    if (offlineEnglishTtsReady) {
+                        engine.setSpeechRate(0.92f)
+                        engine.setPitch(1.0f)
+                    }
+                } catch (error: Exception) {
+                    Log.w(TAG, "No offline English TTS voice is available", error)
+                    offlineEnglishTtsReady = false
+                }
+            } else {
+                offlineEnglishTtsReady = false
+            }
+        }
 
         window.statusBarColor = Color.rgb(245, 246, 251)
         window.navigationBarColor = Color.rgb(245, 246, 251)
@@ -125,6 +153,27 @@ class MainActivity : Activity() {
     }
 
     inner class NativeFileBridge {
+        @JavascriptInterface
+        fun speakEnglish(text: String, slow: Boolean): Boolean {
+            val engine = textToSpeech ?: return false
+            if (!offlineEnglishTtsReady || text.isBlank()) return false
+            return try {
+                engine.setSpeechRate(if (slow) 0.72f else 0.92f)
+                engine.speak(
+                    text.take(500),
+                    TextToSpeech.QUEUE_FLUSH,
+                    null,
+                    "stepup-${System.nanoTime()}"
+                ) == TextToSpeech.SUCCESS
+            } catch (error: Exception) {
+                Log.w(TAG, "Offline English pronunciation failed", error)
+                false
+            }
+        }
+
+        @JavascriptInterface
+        fun isOfflineEnglishVoiceReady(): Boolean = offlineEnglishTtsReady
+
         @JavascriptInterface
         fun saveFile(fileName: String, dataUrl: String) {
             try {
@@ -280,6 +329,10 @@ class MainActivity : Activity() {
                 destroy()
             }
         }
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        textToSpeech = null
+        offlineEnglishTtsReady = false
         super.onDestroy()
     }
 }
