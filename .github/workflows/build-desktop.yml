@@ -7,6 +7,7 @@ on:
       - "desktop/**"
       - ".github/workflows/build-desktop.yml"
       - "index.html"
+      - "tests/**"
   workflow_dispatch:
 
 permissions:
@@ -18,6 +19,14 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      - name: Set up Node.js for content checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate lessons, vocabulary and JavaScript
+        run: node tests/validate-content.cjs
 
       - name: Set up Go
         uses: actions/setup-go@v5
