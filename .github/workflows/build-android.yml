@@ -6,12 +6,14 @@ on:
     paths:
       - "index.html"
       - "android/**"
+      - "tests/**"
       - ".github/workflows/build-android.yml"
   pull_request:
     branches: [main]
     paths:
       - "index.html"
       - "android/**"
+      - "tests/**"
       - ".github/workflows/build-android.yml"
   workflow_dispatch:
 
@@ -24,6 +26,14 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      - name: Set up Node.js for content checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate lessons, vocabulary and JavaScript
+        run: node tests/validate-content.cjs
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -69,13 +79,13 @@ jobs:
           "$APKSIGNER" verify --verbose app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare a clearly named APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.2.0.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.3.0.apk
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
           name: StepUp-English-Android
-          path: android/app/build/outputs/apk/debug/StepUp-English-v1.2.0.apk
+          path: android/app/build/outputs/apk/debug/StepUp-English-v1.3.0.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -83,13 +93,13 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.0
-          name: StepUp English Android v1.2.0
+          tag_name: v1.3.0
+          name: StepUp English Android v1.3.0
           body: |
             StepUp English Android app.
             Offline lessons and embedded pronunciation audio.
             Signed APK for manual installation. Android 6.0 (API 23) or newer.
-          files: android/app/build/outputs/apk/debug/StepUp-English-v1.2.0.apk
+          files: android/app/build/outputs/apk/debug/StepUp-English-v1.3.0.apk
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
