@@ -90,17 +90,10 @@ jobs:
             adb logcat -c
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -n com.stepupenglish.app/.MainActivity
-            for attempt in $(seq 1 25); do
-              if adb shell pidof com.stepupenglish.app >/dev/null 2>&1; then break; fi
-              sleep 1
-            done
+            sleep 8
             adb shell pidof com.stepupenglish.app
-            sleep 6
             adb shell dumpsys activity activities | grep -q "com.stepupenglish.app/.MainActivity"
-            if adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"; then
-              adb logcat -d -s AndroidRuntime:E
-              exit 1
-            fi
+            ! adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"
 
       - name: Prepare a clearly named APK
         run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.3.0.apk
