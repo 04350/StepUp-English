@@ -46,9 +46,9 @@ jobs:
           go mod tidy
           go mod download
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          go build -trimpath -ldflags="-H=windowsgui -s -w" -o dist/StepUp-English-Windows-v1.3.1.exe .
-          if (!(Test-Path "dist/StepUp-English-Windows-v1.3.1.exe")) { throw "EXE was not created" }
-          $exe = Get-Item "dist/StepUp-English-Windows-v1.3.1.exe"
+          go build -trimpath -ldflags="-H=windowsgui -s -w" -o dist/StepUp-English-Windows-v1.3.2.exe .
+          if (!(Test-Path "dist/StepUp-English-Windows-v1.3.2.exe")) { throw "EXE was not created" }
+          $exe = Get-Item "dist/StepUp-English-Windows-v1.3.2.exe"
           if ($exe.Length -lt 1000000) { throw "EXE is unexpectedly small; the embedded app may be missing" }
           $bytes = [System.IO.File]::ReadAllBytes($exe.FullName)
           if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw "Output is not a Windows PE executable" }
@@ -57,7 +57,7 @@ jobs:
       - name: Smoke test Windows app startup
         shell: pwsh
         run: |
-          $appPath = (Resolve-Path "desktop/dist/StepUp-English-Windows-v1.3.1.exe").Path
+          $appPath = (Resolve-Path "desktop/dist/StepUp-English-Windows-v1.3.2.exe").Path
           $app = Start-Process -FilePath $appPath -PassThru
           Start-Sleep -Seconds 8
           $app.Refresh()
@@ -68,6 +68,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: StepUp-English-Windows-x64
-          path: desktop/dist/StepUp-English-Windows-v1.3.1.exe
+          path: desktop/dist/StepUp-English-Windows-v1.3.2.exe
           if-no-files-found: error
           retention-days: 30
