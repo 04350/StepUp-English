@@ -10,9 +10,11 @@ function readConstant(name, nextName) {
   const start = html.indexOf(marker);
   assert(start >= 0, `Missing constant: ${name}`);
   const bodyStart = start + marker.length;
-  const end = html.indexOf(`;
-const ${nextName}`, bodyStart);
-  assert(end >= 0, `Cannot delimit constant: ${name}`);
+  const nextMarker = `const ${nextName} = `;
+  const nextStart = html.indexOf(nextMarker, bodyStart);
+  assert(nextStart >= 0, `Cannot locate next constant after: ${name}`);
+  const end = html.lastIndexOf(";", nextStart);
+  assert(end >= bodyStart, `Cannot delimit constant: ${name}`);
   return JSON.parse(html.slice(bodyStart, end));
 }
 
