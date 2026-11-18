@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-windows:
@@ -71,3 +71,18 @@ jobs:
           path: desktop/dist/StepUp-English-Windows-v1.3.2.exe
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish direct Windows download on GitHub Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.3.2
+          name: StepUp English v1.3.2
+          body: |
+            StepUp English desktop app for Windows 64-bit.
+            Standalone window using Microsoft WebView2 Runtime.
+            Offline lessons and embedded learning content.
+          files: desktop/dist/StepUp-English-Windows-v1.3.2.exe
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
