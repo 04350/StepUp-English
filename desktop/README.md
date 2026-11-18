@@ -20,7 +20,7 @@ Microsoft Edge WebView2 Runtime must be installed. It is included with Windows 1
 The GitHub Actions workflow `.github/workflows/build-desktop.yml` builds on a Windows runner:
 
 1. Copies the repository's current `index.html` into this folder as `app.html`.
-2. Builds `StepUp-English-Windows-v1.3.1.exe` with Go and the pure-Go WebView2 bindings.
+2. Builds `StepUp-English-Windows-v1.3.2.exe` with Go and the pure-Go WebView2 bindings.
 3. Uploads the versioned executable as the workflow artifact `StepUp-English-Windows-x64`.
 
 To start a build manually, open the repository's Actions tab and run **Build StepUp English desktop app**.
