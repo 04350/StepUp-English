@@ -78,6 +78,32 @@ jobs:
           test -n "$APKSIGNER" || { echo "apksigner was not found in Android build-tools"; exit 1; }
           "$APKSIGNER" verify --verbose app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Prepare a clearly named APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.3.1.apk
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: StepUp-English-Android
+          path: android/app/build/outputs/apk/debug/StepUp-English-v1.3.1.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish direct APK download on GitHub Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.3.1
+          name: StepUp English Android v1.3.1
+          body: |
+            StepUp English Android app.
+            Offline lessons and embedded pronunciation audio.
+            Signed APK for manual installation. Android 6.0 (API 23) or newer.
+          files: android/app/build/outputs/apk/debug/StepUp-English-v1.3.1.apk
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Smoke test on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -121,29 +147,3 @@ jobs:
               adb logcat -d -s AndroidRuntime:E
               exit 1
             fi
-
-      - name: Prepare a clearly named APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.3.1.apk
-
-      - name: Upload installable APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: StepUp-English-Android
-          path: android/app/build/outputs/apk/debug/StepUp-English-v1.3.1.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Publish direct APK download on GitHub Releases
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.3.1
-          name: StepUp English Android v1.3.1
-          body: |
-            StepUp English Android app.
-            Offline lessons and embedded pronunciation audio.
-            Signed APK for manual installation. Android 6.0 (API 23) or newer.
-          files: android/app/build/outputs/apk/debug/StepUp-English-v1.3.1.apk
-          overwrite_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
