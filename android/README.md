@@ -16,11 +16,13 @@ This folder contains the Android application wrapper for the existing offline le
 
 - Android 6.0 (API 23) or newer.
 - No account, subscription, or Internet connection required to use the lessons.
-- English text-to-speech voices, when used by the learning interface, depend on voices installed on the Android device. The bundled audio fallback remains part of the HTML app.
+- Uses the Android TextToSpeech engine when an installed English voice that does not require network access is available.
+- Falls back to the locally available WebView speech voice and the recordings embedded in the app.
+- Some newer vocabulary entries require an offline English system voice; the app does not download speech data.
 
 ## Build
 
-The workflow `.github/workflows/build-android.yml` copies the current `index.html` into the Android assets folder, compiles a signed debug APK, validates the APK archive and uploads it as `StepUp-English-Android`.
+The workflow `.github/workflows/build-android.yml` copies the current `index.html` into the Android assets folder, compiles a signed debug APK, validates the APK archive and uploads it as `StepUp-English-Android` with the versioned APK filename `StepUp-English-v1.3.1.apk`.
 
 The debug APK is signed automatically by the Android Gradle plugin and can be installed manually. It is not a Play Store release-signed APK.
 
