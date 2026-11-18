@@ -81,28 +81,55 @@ jobs:
       - name: Smoke test on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
+            set -eu
+            APK="android/app/build/outputs/apk/debug/app-debug.apk"
+            adb wait-for-device
+            BOOTED=0
+            for attempt in $(seq 1 90); do
+              if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" = "1" ]; then
+                BOOTED=1
+                break
+              fi
+              sleep 2
+            done
+            test "$BOOTED" = "1"
+            PACKAGE_READY=0
+            for attempt in $(seq 1 45); do
+              if adb shell cmd package list packages >/dev/null 2>&1; then
+                PACKAGE_READY=1
+                break
+              fi
+              sleep 2
+            done
+            test "$PACKAGE_READY" = "1"
             adb logcat -c
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb install -r --no-streaming "$APK"
+            adb shell am force-stop com.stepupenglish.app
             adb shell am start -n com.stepupenglish.app/.MainActivity
-            sleep 8
+            sleep 10
             adb shell pidof com.stepupenglish.app
             adb shell dumpsys activity activities | grep -q "com.stepupenglish.app/.MainActivity"
-            ! adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"
+            if adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"; then
+              adb logcat -d -s AndroidRuntime:E
+              exit 1
+            fi
 
       - name: Prepare a clearly named APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.3.0.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.3.1.apk
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
           name: StepUp-English-Android
-          path: android/app/build/outputs/apk/debug/StepUp-English-v1.3.0.apk
+          path: android/app/build/outputs/apk/debug/StepUp-English-v1.3.1.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -110,13 +137,13 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3.0
-          name: StepUp English Android v1.3.0
+          tag_name: v1.3.1
+          name: StepUp English Android v1.3.1
           body: |
             StepUp English Android app.
             Offline lessons and embedded pronunciation audio.
             Signed APK for manual installation. Android 6.0 (API 23) or newer.
-          files: android/app/build/outputs/apk/debug/StepUp-English-v1.3.0.apk
+          files: android/app/build/outputs/apk/debug/StepUp-English-v1.3.1.apk
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
