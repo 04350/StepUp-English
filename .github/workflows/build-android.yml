@@ -79,13 +79,13 @@ jobs:
           "$APKSIGNER" verify --verbose app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare a clearly named APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.3.2.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.4.0.apk
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
           name: StepUp-English-Android
-          path: android/app/build/outputs/apk/debug/StepUp-English-v1.3.2.apk
+          path: android/app/build/outputs/apk/debug/StepUp-English-v1.4.0.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -93,13 +93,13 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3.2
-          name: StepUp English Android v1.3.2
+          tag_name: v1.4.0
+          name: StepUp English Android v1.4.0
           body: |
             StepUp English Android app.
             Offline lessons and embedded pronunciation audio.
             Signed APK for manual installation. Android 6.0 (API 23) or newer.
-          files: android/app/build/outputs/apk/debug/StepUp-English-v1.3.2.apk
+          files: android/app/build/outputs/apk/debug/StepUp-English-v1.4.0.apk
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -107,11 +107,11 @@ jobs:
       - name: Smoke test on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          emulator-boot-timeout: 600
+          emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
@@ -119,7 +119,7 @@ jobs:
             APK="android/app/build/outputs/apk/debug/app-debug.apk"
             adb wait-for-device
             BOOTED=0
-            for attempt in $(seq 1 90); do
+            for attempt in $(seq 1 120); do
               if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" = "1" ]; then
                 BOOTED=1
                 break
@@ -128,7 +128,7 @@ jobs:
             done
             test "$BOOTED" = "1"
             PACKAGE_READY=0
-            for attempt in $(seq 1 45); do
+            for attempt in $(seq 1 60); do
               if adb shell cmd package list packages >/dev/null 2>&1; then
                 PACKAGE_READY=1
                 break
