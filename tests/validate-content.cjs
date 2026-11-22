@@ -2,7 +2,7 @@ const fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync('index.html','utf8');
 function ok(v,m){if(!v)throw new Error(m);}
 const scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].filter(x=>!/\bsrc\s*=/.test(x[1]));
-ok(scripts.length>=2,'Missing application or v1.4.0 content script');
+ok(scripts.length>=2,'Missing application or v1.4.1 content script');
 scripts.forEach((x,i)=>new vm.Script(x[2],{filename:'inline-'+(i+1)+'.js'}));
 const elements=new Map(),handlers=[],store=new Map();
 function el(id){if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',value:'',disabled:false,classList:{toggle(){},add(){},remove(){}},addEventListener(){},appendChild(){},style:{}});return elements.get(id);}
@@ -19,7 +19,7 @@ for(const [stage,count] of [['beginner',4],['foundation',10],['intermediate',4],
 const norm=x=>String(x??'').normalize('NFKC').trim().toLowerCase().replace(/\s+/g,' ');
 const words=new Map(d.words.map(x=>[norm(x[0]),x]));
 ok(words.size===d.words.length&&d.words.length>=250,'Dictionary duplicates or too small');
-for(const row of d.words){ok(row[1]&&String(row[1]).trim(),'Missing translation: '+row[0]);const key='word_'+norm(row[0]).replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');ok(d.speech[key],'Missing pronunciation key: '+row[0]);}
+for(const row of d.words){ok(row[1]&&String(row[1]).trim(),'Missing translation: '+row[0]);const key='word_'+norm(row[0]).replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');ok(d.speech[key],'Missing pronunciation key: '+row[0]);ok(d.audio[key]?.startsWith('data:audio/mpeg;base64,'),'Missing bundled offline audio: '+row[0]);}
 for(const lesson of lessons){
  ok(lesson.title&&lesson.desc&&lesson.goal,'Incomplete lesson: '+lesson.id);
  ok(lesson.tips?.length>=2&&lesson.topics?.length,'Missing teaching tips or topic tags: '+lesson.id);
@@ -45,4 +45,4 @@ run("currentLesson='l17';view='lesson';render()");
 function click(action,extra={}){const node={dataset:{action,...extra}},event={target:{closest:()=>node}};for(const h of handlers)if(h.type==='click')h.fn(event);}
 const tokens=JSON.parse(run("JSON.stringify(v14Builder.tokens)"));for(let i=0;i<tokens.length;i++)click('v14-builder-token',{tokenIndex:String(i)});click('v14-builder-check');ok(run('v14Builder.success===true'),'Sentence builder failed');
 run("initFlash('sentences')");const cards=JSON.parse(run('JSON.stringify(flash.items)'));ok(cards.length===240&&cards.every(x=>x.front&&x.back&&x.audio),'Sentence practice deck incomplete');
-console.log(JSON.stringify({version:'1.4.0',lessons:46,stages:7,dictionary:d.words.length,lessonQuestionBanks:Object.keys(banks).length,questions:Object.values(banks).reduce((n,x)=>n+x.length,0),sentences:cards.length,allScreens:'46/46',lessonAndLevelTests:'passed',finalAndPlacement:'passed',builder:'passed',syntax:'passed'},null,2));
+console.log(JSON.stringify({version:'1.4.1',lessons:46,stages:7,dictionary:d.words.length,lessonQuestionBanks:Object.keys(banks).length,questions:Object.values(banks).reduce((n,x)=>n+x.length,0),sentences:cards.length,allScreens:'46/46',lessonAndLevelTests:'passed',finalAndPlacement:'passed',builder:'passed',syntax:'passed'},null,2));
