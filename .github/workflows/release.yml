@@ -1,0 +1,101 @@
+name: Verify and release StepUp English
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-signing:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check whether the persistent Android signing key is configured
+        id: check
+        env:
+          KEYSTORE: ${{ secrets.STEPUP_ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STEPUP_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.STEPUP_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.STEPUP_ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$KEYSTORE" && -n "$STORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Persistent Android signing key is configured."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Android release publishing is disabled until all four STEPUP_ANDROID_* signing secrets are configured. A debug APK will still be built and smoke-tested."
+          fi
+
+  android:
+    needs: check-signing
+    uses: ./.github/workflows/build-android.yml
+    with:
+      release_build: ${{ github.event_name == 'workflow_dispatch' && needs.check-signing.outputs.configured == 'true' }}
+    secrets: inherit
+
+  windows:
+    uses: ./.github/workflows/build-desktop.yml
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && needs.android.outputs.signed == 'true'
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Read canonical release version
+        id: meta
+        run: echo "version=$(node -p "require('./version.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Download verified Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: StepUp-English-Android
+          path: dist
+
+      - name: Download verified Windows EXE
+        uses: actions/download-artifact@v4
+        with:
+          name: StepUp-English-Windows-x64
+          path: dist
+
+      - name: Verify both release files are present
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          test -s "dist/StepUp-English.apk"
+          test -s "dist/StepUp-English-Windows-v$VERSION.exe"
+          cp "dist/StepUp-English.apk" "dist/StepUp-English-v$VERSION.apk"
+          ls -lh dist/
+
+      - name: Publish one release containing both platforms
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.meta.outputs.version }}
+          name: StepUp English v${{ steps.meta.outputs.version }}
+          body_path: CHANGELOG.md
+          files: |
+            dist/StepUp-English-v${{ steps.meta.outputs.version }}.apk
+            dist/StepUp-English-Windows-v${{ steps.meta.outputs.version }}.exe
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-skipped:
+    if: github.event_name == 'workflow_dispatch' && needs.android.outputs.signed != 'true'
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain why the public release was not published
+        run: |
+          echo "Both platform build jobs completed, but no public release was created."
+          echo "Configure the four persistent Android signing secrets described in android/SIGNING.md, then run this workflow again."

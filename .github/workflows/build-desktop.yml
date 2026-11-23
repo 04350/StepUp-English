@@ -1,18 +1,11 @@
 name: Build StepUp English desktop app
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "desktop/**"
-      - ".github/workflows/build-desktop.yml"
-      - "index.html"
-      - "tests/**"
-      - "tools/**"
+  workflow_call:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-windows:
@@ -21,20 +14,31 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Set up Node.js for content checks
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
+      - name: Read canonical version
+        run: |
+          node .github/scripts/set-version.cjs >> "$env:GITHUB_ENV"
+          $version = node -p "require('./version.json').version"
+          "STEPUP_VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        shell: pwsh
+        id: version
+
       - name: Validate lessons, vocabulary and JavaScript
         run: node tests/validate-content.cjs
+
+      - name: Validate version metadata and release configuration
+        run: node tests/validate-release.cjs
 
       - name: Set up Python for icon preparation
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Prepare branded Windows and Android icons
+      - name: Prepare branded Windows icon
         run: |
           python -m pip install --disable-pip-version-check Pillow
           python tools/prepare-icons.py
@@ -46,9 +50,9 @@ jobs:
           cache: true
           cache-dependency-path: desktop/go.mod
 
-      - name: Embed the current offline learning app
+      - name: Embed the current versioned offline learning app
         shell: pwsh
-        run: Copy-Item -LiteralPath "index.html" -Destination "desktop/app.html" -Force
+        run: node .github/scripts/inject-version.cjs index.html desktop/app.html
 
       - name: Build native Windows app
         working-directory: desktop
@@ -59,44 +63,27 @@ jobs:
           go run github.com/akavel/rsrc@latest -ico StepUp-English.ico -o rsrc_windows_amd64.syso -arch amd64
           if (!(Test-Path "rsrc_windows_amd64.syso")) { throw "Windows icon resource was not generated" }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          go build -trimpath -ldflags="-H=windowsgui -s -w" -o dist/StepUp-English-Windows-v1.4.2.exe .
-          if (!(Test-Path "dist/StepUp-English-Windows-v1.4.2.exe")) { throw "EXE was not created" }
-          $exe = Get-Item "dist/StepUp-English-Windows-v1.4.2.exe"
+          go build -trimpath -ldflags="-H=windowsgui -s -w" -o "dist/StepUp-English-Windows-v$env:STEPUP_VERSION.exe" .
+          $exe = Get-Item "dist/StepUp-English-Windows-v$env:STEPUP_VERSION.exe"
           if ($exe.Length -lt 1000000) { throw "EXE is unexpectedly small; the embedded app may be missing" }
           $bytes = [System.IO.File]::ReadAllBytes($exe.FullName)
           if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw "Output is not a Windows PE executable" }
-          Write-Host "Built $($exe.Length)-byte Windows executable with the StepUp English icon resource"
+          Write-Host "Built $($exe.Length)-byte Windows executable"
 
       - name: Smoke test Windows app startup
         shell: pwsh
         run: |
-          $appPath = (Resolve-Path "desktop/dist/StepUp-English-Windows-v1.4.2.exe").Path
+          $appPath = (Resolve-Path "desktop/dist/StepUp-English-Windows-v$env:STEPUP_VERSION.exe").Path
           $app = Start-Process -FilePath $appPath -PassThru
           Start-Sleep -Seconds 8
           $app.Refresh()
           if ($app.HasExited) { throw "StepUp English closed during startup (exit code $($app.ExitCode))" }
           Stop-Process -Id $app.Id -Force
 
-      - name: Upload Windows executable
+      - name: Upload Windows executable artifact
         uses: actions/upload-artifact@v4
         with:
           name: StepUp-English-Windows-x64
-          path: desktop/dist/StepUp-English-Windows-v1.4.2.exe
+          path: desktop/dist/StepUp-English-Windows-v*.exe
           if-no-files-found: error
           retention-days: 30
-
-      - name: Publish direct Windows download on GitHub Releases
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.4.2
-          name: StepUp English v1.4.2
-          body: |
-            StepUp English desktop app for Windows 64-bit.
-            The OgenPlay listing icon is embedded in the EXE and used by the app window.
-            Standalone window using Microsoft WebView2 Runtime.
-            Offline lessons with bundled MP3 fallback audio for all 284 dictionary entries.
-          files: desktop/dist/StepUp-English-Windows-v1.4.2.exe
-          overwrite_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
