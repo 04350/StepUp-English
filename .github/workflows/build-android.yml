@@ -7,6 +7,7 @@ on:
       - "index.html"
       - "android/**"
       - "tests/**"
+      - "tools/**"
       - ".github/workflows/build-android.yml"
   pull_request:
     branches: [main]
@@ -14,6 +15,7 @@ on:
       - "index.html"
       - "android/**"
       - "tests/**"
+      - "tools/**"
       - ".github/workflows/build-android.yml"
   workflow_dispatch:
 
@@ -35,6 +37,16 @@ jobs:
       - name: Validate lessons, vocabulary and JavaScript
         run: node tests/validate-content.cjs
 
+      - name: Set up Python for icon preparation
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare branded Android launcher icon
+        run: |
+          python -m pip install --disable-pip-version-check Pillow
+          python tools/prepare-icons.py
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -52,6 +64,7 @@ jobs:
           cp index.html android/app/src/main/assets/index.html
           test -s android/app/src/main/assets/index.html
           test "$(wc -c < android/app/src/main/assets/index.html)" -gt 1000000
+          test -s android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
       - name: Build Android APK
         working-directory: android
@@ -70,7 +83,9 @@ jobs:
               assert archive.testzip() is None, "APK ZIP integrity check failed"
               bundled = archive.read("assets/index.html")
               assert bundled == source, "APK does not contain the current index.html"
-          print(f"APK verified: {apk.stat().st_size:,} bytes; embedded HTML: {len(source):,} bytes")
+              icon_paths = [name for name in archive.namelist() if name.startswith("res/mipmap-") and name.endswith("/ic_launcher.png")]
+              assert len(icon_paths) >= 5, f"Expected all Android launcher icon densities, got {icon_paths}"
+          print(f"APK verified: {apk.stat().st_size:,} bytes; embedded HTML: {len(source):,} bytes; launcher icons: {len(icon_paths)}")
           PY
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$SDK_ROOT" || { echo "Android SDK root was not found"; exit 1; }
@@ -79,13 +94,13 @@ jobs:
           "$APKSIGNER" verify --verbose app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare a clearly named APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.4.1.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.4.2.apk
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
           name: StepUp-English-Android
-          path: android/app/build/outputs/apk/debug/StepUp-English-v1.4.1.apk
+          path: android/app/build/outputs/apk/debug/StepUp-English-v1.4.2.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -93,13 +108,14 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.1
-          name: StepUp English Android v1.4.1
+          tag_name: v1.4.2
+          name: StepUp English Android v1.4.2
           body: |
             StepUp English Android app.
+            OgenPlay listing icon is now embedded as the Android launcher icon.
             Offline lessons and bundled offline MP3 pronunciation fallback for all 284 dictionary entries.
             Signed APK for manual installation. Android 6.0 (API 23) or newer.
-          files: android/app/build/outputs/apk/debug/StepUp-English-v1.4.1.apk
+          files: android/app/build/outputs/apk/debug/StepUp-English-v1.4.2.apk
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
