@@ -1,0 +1,18 @@
+name: Android emulator smoke test
+description: Boot an Android emulator and install/launch StepUp English
+runs:
+  using: composite
+  steps:
+    - name: Boot emulator and run standalone smoke test
+      uses: reactivecircus/android-emulator-runner@v2
+      env:
+        ANDROID_I_WANT_MY_TCG: "yes"
+      with:
+        api-level: 34
+        target: google_apis
+        arch: x86_64
+        profile: pixel_2
+        emulator-boot-timeout: 1200
+        emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+        disable-animations: true
+        script: bash .github/scripts/android-smoke-test.sh
