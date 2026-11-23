@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+APK_PATH="android/app/StepUp-English.apk"
 PACKAGE_NAME="com.stepupenglish.app"
 ACTIVITY_NAME="com.stepupenglish.app/.MainActivity"
 
