@@ -113,20 +113,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 1200
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: |
-            set -eu
-            APK="android/app/build/outputs/apk/debug/app-debug.apk"
-            adb wait-for-device
-            test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
-            adb shell cmd package list packages >/dev/null
-            adb logcat -c
-            adb install -r --no-streaming "$APK"
-            adb shell am force-stop com.stepupenglish.app
-            adb shell am start -n com.stepupenglish.app/.MainActivity
-            sleep 10
-            adb shell pidof com.stepupenglish.app
-            adb shell dumpsys activity activities | grep -q "com.stepupenglish.app/.MainActivity"
-            ! adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"
+          script: bash .github/scripts/android-smoke-test.sh
