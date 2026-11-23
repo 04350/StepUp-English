@@ -1,0 +1,7 @@
+# Generated Android and desktop build outputs
+android/app/build/
+android/app/stepup-release.jks
+desktop/app.html
+desktop/dist/
+desktop/*.syso
+build-assets/
