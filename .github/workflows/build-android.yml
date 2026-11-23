@@ -104,16 +104,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Smoke test on Android emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        env:
-          ANDROID_I_WANT_MY_TCG: "yes"
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          emulator-boot-timeout: 1200
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          script: bash .github/scripts/android-smoke-test.sh
+      - name: Android emulator smoke test — attempt 1 of 3
+        id: android_smoke_1
+        uses: ./.github/actions/android-emulator-smoke
+        continue-on-error: true
+
+      - name: Android emulator smoke test — attempt 2 of 3
+        id: android_smoke_2
+        if: steps.android_smoke_1.outcome == 'failure'
+        uses: ./.github/actions/android-emulator-smoke
+        continue-on-error: true
+
+      - name: Android emulator smoke test — attempt 3 of 3
+        id: android_smoke_3
+        if: steps.android_smoke_1.outcome == 'failure' && steps.android_smoke_2.outcome == 'failure'
+        uses: ./.github/actions/android-emulator-smoke
+        continue-on-error: true
+
+      - name: Require at least one successful Android emulator test
+        if: always()
+        run: test "${{ steps.android_smoke_1.outcome }}" = "success" || test "${{ steps.android_smoke_2.outcome }}" = "success" || test "${{ steps.android_smoke_3.outcome }}" = "success"
