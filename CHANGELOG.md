@@ -11,4 +11,6 @@
 - Added a 10-word daily practice session using words not yet marked as known.
 - Improved placement-test feedback with per-level percentages and the recommendation rule.
 - Corrected outdated documentation and the home-screen level count.
+- Fixed the Windows WebView2 storage origin to reuse a persisted loopback port, and added unit tests for port persistence and loopback-only binding.
+- **Upgrade note:** export a backup from Windows v1.4.2 or earlier before installing v1.4.3, then restore it once; the older builds used a random local port on each launch.
 - Kept all learning content and audio packaged locally for offline use.
