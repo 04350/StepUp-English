@@ -17,4 +17,4 @@ Microsoft Edge WebView2 Runtime must be installed. It is included with Windows 1
 
 The workflow `.github/workflows/build-desktop.yml` is reusable by the central release workflow. It reads the version from the root `version.json`, injects that value into the app, embeds the OgenPlay icon and builds a versioned EXE.
 
-The central release workflow publishes the Windows EXE and Android APK together only after both platform builds pass.
+The central release workflow publishes the Windows EXE and Android APK together only after both platform builds pass. Version 1.4.3 now persists the loopback port so WebView2 localStorage uses the same origin on later launches. Before updating from v1.4.2 or earlier, export a backup from the old installation and restore it after installing v1.4.3; older builds used a random port on each launch.
