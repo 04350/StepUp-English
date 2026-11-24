@@ -10,6 +10,8 @@ import (
     "net/http"
     "os"
     "path/filepath"
+    "strconv"
+    "strings"
     "syscall"
     "unsafe"
 )
@@ -50,6 +52,33 @@ func appDataDir() (string, error) {
         return "", err
     }
     return dir, nil
+}
+
+func listenLoopback(dataDir string) (net.Listener, error) {
+    portFile := filepath.Join(dataDir, "loopback-port.txt")
+
+    // Reuse the same loopback port between launches. WebView localStorage is
+    // scoped to an origin including its port; a random port on every launch
+    // would make previously saved progress appear to be missing.
+    if raw, err := os.ReadFile(portFile); err == nil {
+        if port, parseErr := strconv.Atoi(strings.TrimSpace(string(raw))); parseErr == nil && port > 0 && port <= 65535 {
+            listener, listenErr := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", port))
+            if listenErr == nil {
+                return listener, nil
+            }
+        }
+    }
+
+    listener, err := listenLoopback(dataDir)
+    if err != nil {
+        return nil, err
+    }
+    port := listener.Addr().(*net.TCPAddr).Port
+    if err := os.WriteFile(portFile, []byte(strconv.Itoa(port)), 0600); err != nil {
+        _ = listener.Close()
+        return nil, fmt.Errorf("could not persist local application port: %w", err)
+    }
+    return listener, nil
 }
 
 func main() {

@@ -1,32 +1,33 @@
 # StepUp English for Android
 
-This folder contains the Android application wrapper for the existing offline learning app.
+The Android application is a self-contained wrapper around the repository's offline learning app.
 
 ## App behavior
 
-- Opens as a standalone Android application (not in an external browser).
-- Packages the repository's current root `index.html` into the APK at build time.
+- Opens as a standalone Android application.
+- Packages a version-injected copy of the root `index.html` into the APK.
 - Uses Android System WebView with JavaScript and local storage enabled.
-- Requires no Internet permission and blocks external navigation.
+- Does not require Internet permission for learning content.
 - Keeps lesson progress and settings in the app's local WebView storage.
-- Includes the offline lessons and embedded pronunciation audio from `index.html`.
-- Supports selecting a local backup file for restore and saving generated backup files into the device's Downloads folder.
+- Includes all lessons and the bundled MP3 fallback recordings for all 284 dictionary entries.
+- Uses an installed offline English TextToSpeech voice for sentence reading when available. The embedded word recordings remain available without that voice.
+- Supports exporting a backup and selecting a JSON backup file for restore.
 
 ## Requirements
 
-- Android 6.0 (API 23) or newer. Version 1.3.2 declares Android 11+ TTS service visibility in the manifest.
-- No account, subscription, or Internet connection required to use the lessons.
-- Uses the Android TextToSpeech engine when an installed English voice that does not require network access is available.
-- Falls back to the locally available WebView speech voice and the recordings embedded in the app.
-- Some newer vocabulary entries require an offline English system voice; the app does not download speech data.
+- Android 6.0 (API 23) or newer.
+- No account, subscription or Internet connection is required for lessons and bundled word audio.
 
-## Build
+## Version source
 
-The workflow `.github/workflows/build-android.yml` copies the current `index.html` into the Android assets folder, compiles a signed debug APK, validates the APK archive and uploads it as `StepUp-English-Android` with the versioned APK filename `StepUp-English-v1.3.1.apk`.
+The root `version.json` file is the only source for Android `versionName` and `versionCode`. Gradle reads it directly.
 
-The debug APK is signed automatically by the Android Gradle plugin and can be installed manually. It is not a Play Store release-signed APK.
+## Build and CI
 
+The reusable workflow `.github/workflows/build-android.yml` validates the curriculum, prepares the launcher icon, injects the canonical version, builds the APK, verifies its contents and signature, and runs an Android emulator smoke test with up to three attempts.
 
-## Continuous integration verification
+The central workflow `.github/workflows/release.yml` calls both platform build workflows and publishes a single GitHub Release only after both succeed.
 
-The Android workflow also runs for pull requests and checks that the APK is a valid ZIP, that it contains the byte-for-byte current root `index.html`, and that its Android signature verifies.
+## Signing and upgrade safety
+
+Pull-request and manual development builds use the Gradle debug configuration. A public release APK is built only when the dedicated Android signing secrets are configured. See [SIGNING.md](SIGNING.md) before the first dedicated-key release; a signing-certificate change may require a backup, reinstall and restore migration.

@@ -1,41 +1,53 @@
 name: Build StepUp English Android APK
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "index.html"
-      - "android/**"
-      - "tests/**"
-      - "tools/**"
-      - ".github/workflows/build-android.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "index.html"
-      - "android/**"
-      - "tests/**"
-      - "tools/**"
-      - ".github/workflows/build-android.yml"
+  workflow_call:
+    inputs:
+      release_build:
+        description: Build a release APK using the persistent keystore
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      signed:
+        description: Whether this workflow produced a dedicated-key release APK
+        value: ${{ jobs.build-android.outputs.signed }}
   workflow_dispatch:
+    inputs:
+      release_build:
+        description: Use the configured persistent Android release key
+        required: false
+        type: boolean
+        default: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    outputs:
+      signed: ${{ steps.release-meta.outputs.signed }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Set up Node.js for content checks
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
+      - name: Read canonical version
+        id: version
+        run: |
+          node .github/scripts/set-version.cjs >> "$GITHUB_ENV"
+          node -e "const v=require('./version.json');console.log('version='+v.version)" >> "$GITHUB_OUTPUT"
+
       - name: Validate lessons, vocabulary and JavaScript
         run: node tests/validate-content.cjs
+
+      - name: Validate version metadata and release configuration
+        run: node tests/validate-release.cjs
 
       - name: Set up Python for icon preparation
         uses: actions/setup-python@v5
@@ -58,31 +70,59 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Package the current offline learning app
+      - name: Configure dedicated Android release key
+        if: inputs.release_build
+        env:
+          KEYSTORE_BASE64: ${{ secrets.STEPUP_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.STEPUP_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.STEPUP_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.STEPUP_ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo "::error::Missing STEPUP_ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "$KEYSTORE_PASSWORD" || { echo "::error::Missing STEPUP_ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "::error::Missing STEPUP_ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "::error::Missing STEPUP_ANDROID_KEY_PASSWORD"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/stepup-release.jks
+          test -s android/app/stepup-release.jks
+          echo "STEPUP_KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/stepup-release.jks" >> "$GITHUB_ENV"
+
+      - name: Package the versioned offline learning app
         run: |
           mkdir -p android/app/src/main/assets
-          cp index.html android/app/src/main/assets/index.html
+          node .github/scripts/inject-version.cjs index.html android/app/src/main/assets/index.html
           test -s android/app/src/main/assets/index.html
           test "$(wc -c < android/app/src/main/assets/index.html)" -gt 1000000
-          test -s android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          ! grep -q '__STEPUP_VERSION__' android/app/src/main/assets/index.html
 
-      - name: Build Android APK
-        working-directory: android
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Build installable Android APK
+        env:
+          STEPUP_RELEASE_BUILD: ${{ inputs.release_build }}
+        run: |
+          if [[ "$STEPUP_RELEASE_BUILD" == "true" ]]; then
+            (cd android && gradle --no-daemon --stacktrace :app:assembleRelease)
+            cp android/app/build/outputs/apk/release/app-release.apk android/app/StepUp-English.apk
+          else
+            (cd android && gradle --no-daemon --stacktrace :app:assembleDebug)
+            cp android/app/build/outputs/apk/debug/app-debug.apk android/app/StepUp-English.apk
+          fi
+          test -s android/app/StepUp-English.apk
+          test "$(wc -c < android/app/StepUp-English.apk)" -gt 1000000
 
-      - name: Verify APK and embedded offline content
-        working-directory: android
+      - name: Record signing mode
+        id: release-meta
+        run: echo "signed=${{ inputs.release_build }}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify APK archive, offline content, icon and signature
         run: |
           python3 - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile
-          apk = Path("app/build/outputs/apk/debug/app-debug.apk")
-          source = Path("../index.html").read_bytes()
-          assert apk.is_file() and apk.stat().st_size > 1_000_000, "APK missing or unexpectedly small"
+          apk = Path("android/app/StepUp-English.apk")
+          source = Path("android/app/src/main/assets/index.html").read_bytes()
           with ZipFile(apk) as archive:
               assert archive.testzip() is None, "APK ZIP integrity check failed"
               bundled = archive.read("assets/index.html")
-              assert bundled == source, "APK does not contain the current index.html"
+              assert bundled == source, "APK does not contain the exact version-injected app HTML"
               icon_paths = [name for name in archive.namelist() if name.startswith("res/mipmap-") and name.endswith("/ic_launcher.png")]
               assert len(icon_paths) >= 5, f"Expected all Android launcher icon densities, got {icon_paths}"
           print(f"APK verified: {apk.stat().st_size:,} bytes; embedded HTML: {len(source):,} bytes; launcher icons: {len(icon_paths)}")
@@ -91,34 +131,15 @@ jobs:
           test -n "$SDK_ROOT" || { echo "Android SDK root was not found"; exit 1; }
           APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           test -n "$APKSIGNER" || { echo "apksigner was not found in Android build-tools"; exit 1; }
-          "$APKSIGNER" verify --verbose app/build/outputs/apk/debug/app-debug.apk
+          "$APKSIGNER" verify --verbose android/app/StepUp-English.apk
 
-      - name: Prepare a clearly named APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/StepUp-English-v1.4.2.apk
-
-      - name: Upload installable APK
+      - name: Upload installable APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: StepUp-English-Android
-          path: android/app/build/outputs/apk/debug/StepUp-English-v1.4.2.apk
+          path: android/app/StepUp-English.apk
           if-no-files-found: error
           retention-days: 30
-
-      - name: Publish direct APK download on GitHub Releases
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.4.2
-          name: StepUp English Android v1.4.2
-          body: |
-            StepUp English Android app.
-            OgenPlay listing icon is now embedded as the Android launcher icon.
-            Offline lessons and bundled offline MP3 pronunciation fallback for all 284 dictionary entries.
-            Signed APK for manual installation. Android 6.0 (API 23) or newer.
-          files: android/app/build/outputs/apk/debug/StepUp-English-v1.4.2.apk
-          overwrite_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Android emulator smoke test — attempt 1 of 3
         id: android_smoke_1

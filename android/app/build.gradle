@@ -1,7 +1,16 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id "com.android.application"
     id "org.jetbrains.kotlin.android"
 }
+
+def versionFile = rootProject.file("../version.json")
+if (!versionFile.exists()) {
+    throw new GradleException("Missing root version.json")
+}
+def versionConfig = new JsonSlurper().parse(versionFile)
+def releaseSigningPath = System.getenv("STEPUP_KEYSTORE_PATH")
 
 android {
     namespace "com.stepupenglish.app"
@@ -11,8 +20,19 @@ android {
         applicationId "com.stepupenglish.app"
         minSdk 23
         targetSdk 34
-        versionCode 8
-        versionName "1.4.2"
+        versionCode versionConfig.androidVersionCode as int
+        versionName versionConfig.version as String
+    }
+
+    if (releaseSigningPath) {
+        signingConfigs {
+            release {
+                storeFile file(releaseSigningPath)
+                storePassword System.getenv("STEPUP_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("STEPUP_KEY_ALIAS")
+                keyPassword System.getenv("STEPUP_KEY_PASSWORD")
+            }
+        }
     }
 
     compileOptions {
@@ -27,7 +47,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+            signingConfig releaseSigningPath ? signingConfigs.release : signingConfigs.debug
         }
     }
 }
