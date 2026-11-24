@@ -78,7 +78,7 @@ ctx.__backupText=legacyText;
 run("importData({text:__backupText})");
 ok(run("progress.completed.length===1&&progress.completed[0]==='l02'"),'Legacy version 1 backup is not supported');
 run("progress={...defaultProgress};progress.lastStudy='';view='home';render()");
-ok(el('app').innerHTML.includes('עוד לא תרגלת היום?'),'Home screen should remind the user to learn when today's session is not complete');
+ok(el('app').innerHTML.includes('עוד לא תרגלת היום?'),"Home screen should remind the user to learn when today's session is not complete");
 run("progress.lastStudy=todayKey();view='home';render()");
 ok(el('app').innerHTML.includes('כבר למדת היום!'),'Home screen should acknowledge learning already completed today');
 run("progress.lastStudy='';initDailyPractice()");
