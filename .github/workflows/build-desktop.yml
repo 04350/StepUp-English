@@ -54,6 +54,11 @@ jobs:
         shell: pwsh
         run: node .github/scripts/inject-version.cjs index.html desktop/app.html
 
+      - name: Test Windows local-origin persistence
+        working-directory: desktop
+        shell: pwsh
+        run: go test ./...
+
       - name: Build native Windows app
         working-directory: desktop
         shell: pwsh
