@@ -77,7 +77,11 @@ const legacyText=JSON.stringify({app:'StepUp English',version:1,progress:{comple
 ctx.__backupText=legacyText;
 run("importData({text:__backupText})");
 ok(run("progress.completed.length===1&&progress.completed[0]==='l02'"),'Legacy version 1 backup is not supported');
-run("progress={...defaultProgress};settings={slow:false,voiceURI:''};initDailyPractice()");
+run("progress={...defaultProgress};progress.lastStudy='';view='home';render()");
+ok(el('app').innerHTML.includes('עוד לא תרגלת היום?'),'Home screen should remind the user to learn when today's session is not complete');
+run("progress.lastStudy=todayKey();view='home';render()");
+ok(el('app').innerHTML.includes('כבר למדת היום!'),'Home screen should acknowledge learning already completed today');
+run("progress.lastStudy='';initDailyPractice()");
 const daily=JSON.parse(run("JSON.stringify(flash.items)"));
 ok(run("flash.deck==='daily'&&flash.items.length===10"),'Daily practice should create a 10-word session');
 ok(new Set(daily.map(x=>x.id)).size===10&&daily.every(x=>x.audio&&x.kind==='מילה'),'Daily practice cards are invalid or duplicated');
